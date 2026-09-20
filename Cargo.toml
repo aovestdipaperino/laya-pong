@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["game", "server"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Enzo Lombardi <enzinol@gmail.com>"]
+license = "Apache-2.0"
+repository = "https://github.com/aovestdipaperino/laya-pong"
+
+[profile.release]
+opt-level = "z"
+lto = true

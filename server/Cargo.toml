@@ -1,0 +1,30 @@
+[package]
+name = "laya-pong-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Native Laya decision endpoint for the browser pong demo"
+
+[[bin]]
+name = "laya-pong-server"
+path = "src/main.rs"
+
+[dependencies]
+# Not on crates.io yet; once it is, this becomes
+# laya = { version = "0.1", default-features = false }
+laya = { git = "https://github.com/aovestdipaperino/laya-rust", default-features = false }
+laya-pong-game = { path = "../game" }
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+tower-http = { version = "0.6", features = ["fs", "cors"] }
+candle-core = "0.9"
+
+[features]
+metal = ["candle-core/metal", "laya/metal"]
+cuda = ["candle-core/cuda", "laya/cuda"]

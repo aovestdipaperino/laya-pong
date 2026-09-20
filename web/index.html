@@ -1,0 +1,148 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Laya Pong</title>
+<style>
+  :root { --bg:#faf8f3; --ink:#1f2933; --slate:#2e3f52; --green:#2e7d4f;
+          --red:#9b2c2c; --grey:#9aa5b1; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#141a20; --ink:#e8eaed; --slate:#9fb3c8; --grey:#6b7684; }
+  }
+  body { background:var(--bg); color:var(--ink); margin:0; padding:24px 16px;
+         font:15px/1.5 ui-sans-serif, system-ui, sans-serif; }
+  main { max-width:900px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  p.sub { color:var(--grey); margin:0 0 20px; }
+  .courts { display:flex; gap:16px; flex-wrap:wrap; }
+  .court { flex:1 1 380px; }
+  canvas { width:100%; height:auto; display:block;
+           border:1px solid var(--grey); border-radius:4px; }
+  .label { font:12px/1.6 ui-monospace, monospace; letter-spacing:.06em;
+           text-transform:uppercase; color:var(--slate); margin-bottom:6px; }
+  .stat { font:13px/1.6 ui-monospace, monospace; color:var(--ink); margin-top:6px; }
+  .dead { color:var(--red); }
+  .pick { display:block; margin:0 0 6px; color:var(--grey); font-size:14px; }
+  select { font:inherit; margin-left:6px; padding:3px 6px; border-radius:4px;
+           border:1px solid var(--grey); background:transparent; color:var(--ink); }
+  .state { font:12px/1.5 ui-monospace, monospace; color:var(--slate);
+           margin:0 0 16px; min-height:1.5em; }
+  button { font:inherit; padding:7px 16px; border-radius:4px;
+           border:1px solid var(--slate); background:transparent;
+           color:var(--ink); cursor:pointer; margin-top:18px; }
+</style>
+<main>
+  <h1>Laya Pong</h1>
+  <p class="sub">Same ball, same physics. Left paddle decided by one typed
+     question per frame; right paddle decided by three lines of arithmetic.
+     The model is shown the same three quantities either way: paddle height,
+     ball height, and ball direction in degrees.</p>
+  <label class="pick">State given to the model:
+    <select id="encoding">
+      <option value="verbal">a sentence, with direction</option>
+      <option value="verbal_nodir">a sentence, without direction</option>
+      <option value="numeric">the three numbers</option>
+    </select>
+  </label>
+  <p class="state" id="shown">&nbsp;</p>
+  <div class="courts">
+    <div class="court">
+      <div class="label">Laya &middot; one question per frame</div>
+      <canvas id="c-model" width="440" height="330"></canvas>
+      <div class="stat" id="s-model">waiting</div>
+    </div>
+    <div class="court">
+      <div class="label">Three lines of arithmetic</div>
+      <canvas id="c-rule" width="440" height="330"></canvas>
+      <div class="stat" id="s-rule">waiting</div>
+    </div>
+  </div>
+  <button id="restart">Restart both</button>
+</main>
+
+<script type="module">
+import init, { Game } from "./pkg/laya_pong_game.js";
+
+const PADDLE = 0.20;
+const css = getComputedStyle(document.documentElement);
+const col = n => css.getPropertyValue(n).trim();
+
+function draw(canvas, f) {
+  const g = canvas.getContext("2d");
+  const { width: w, height: h } = canvas;
+  g.clearRect(0, 0, w, h);
+  g.fillStyle = col("--slate");
+  g.fillRect(0, (f.paddle_y - PADDLE / 2) * h, 7, PADDLE * h);
+  g.beginPath();
+  g.arc(f.ball_x * (w - 14) + 10, f.ball_y * h, 6, 0, Math.PI * 2);
+  g.fillStyle = f.alive ? col("--green") : col("--red");
+  g.fill();
+}
+
+// One decision per frame. `ms` is what the server measured for the forward
+// pass, so the readout is the model's own latency, not the round trip.
+async function modelMove(state) {
+  try {
+    const r = await fetch("/decide", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ state }),
+    });
+    return await r.json();
+  } catch {
+    return { move: 0, confidence: 0, ms: 0 };
+  }
+}
+
+await init();
+
+function run(seed) {
+  const lanes = [
+    { id: "model", game: new Game(seed), frames: 0, ms: [] },
+    { id: "rule",  game: new Game(seed), frames: 0, ms: [] },
+  ];
+
+  // Both lanes advance on the same tick, so the comparison stays fair even
+  // when the model is the slower of the two.
+  (async function loop() {
+    while (lanes.some(l => l.game.frame().alive)) {
+      await Promise.all(lanes.map(async lane => {
+        const f = lane.game.frame();
+        if (!f.alive) return;
+        let mv;
+        if (lane.id === "model") {
+          const enc = document.getElementById("encoding").value;
+          const state = enc === "numeric" ? lane.game.state_numeric()
+                      : enc === "verbal"  ? lane.game.state_text()
+                                          : lane.game.state_text_no_direction();
+          document.getElementById("shown").textContent = state;
+          const d = await modelMove(state);
+          mv = d.move;
+          lane.ms.push(d.ms);
+        } else {
+          mv = lane.game.arithmetic_move();
+        }
+        lane.game.step(mv);
+        lane.frames++;
+      }));
+
+      for (const lane of lanes) {
+        const f = lane.game.frame();
+        draw(document.getElementById(`c-${lane.id}`), f);
+        const el = document.getElementById(`s-${lane.id}`);
+        const med = lane.ms.length
+          ? `${[...lane.ms].sort((a, b) => a - b)[lane.ms.length >> 1]} ms p50  ·  ` : "";
+        el.className = f.alive ? "stat" : "stat dead";
+        el.textContent = `${med}frame ${lane.frames}  ·  ${f.returns} returns`
+                       + (f.alive ? "" : "  ·  missed");
+      }
+      // The rule lane would otherwise spin as fast as the event loop allows.
+      await new Promise(r => setTimeout(r, 33));
+    }
+  })();
+}
+
+let seed = 1;
+document.getElementById("restart").onclick = () => run(++seed);
+// Changing the encoding mid-life would mix two policies in one score.
+document.getElementById("encoding").onchange = () => run(++seed);
+run(seed);
+</script>
