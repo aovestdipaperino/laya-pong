@@ -23,11 +23,10 @@ decision.** The browser calls `POST /decide` once per frame and gets back a move
 
 ## Building
 
-You need Rust with the `wasm32-unknown-unknown` target, `wasm-pack`, and a checkout of `laya`
-sitting next to this one (it is not on crates.io yet).
+You need Rust with the `wasm32-unknown-unknown` target and `wasm-pack`. The `laya` crate comes
+in as a git dependency, so there is nothing else to clone.
 
 ```sh
-git clone https://github.com/aovestdipaperino/laya-rust laya
 git clone https://github.com/aovestdipaperino/laya-pong
 cd laya-pong
 ```
@@ -104,7 +103,7 @@ Reproduce it with one command, which drives this same crate rather than a copy o
 
 ```sh
 cargo run --release -p laya-pong-server --features metal \
-    --example bench -- ../laya/models/laya-base
+    --example bench -- models/laya-base
 ```
 
 Be clear about what the model is doing: the geometry is done by the bucketing in `state_text`,
