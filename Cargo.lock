@@ -1254,7 +1254,7 @@ dependencies = [
 [[package]]
 name = "laya"
 version = "0.1.1"
-source = "git+https://github.com/aovestdipaperino/laya-rust#93b18be935948f7267a6e676043dda7bffd6bcc2"
+source = "git+https://github.com/aovestdipaperino/laya-rust#fa0ad2b1e7f2108e133b10ecfbbd8f31eff5bb4b"
 dependencies = [
  "anyhow",
  "candle-core",
