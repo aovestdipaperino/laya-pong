@@ -1,5 +1,7 @@
 # laya-pong
 
+[![GitHub stars](https://img.shields.io/github/stars/aovestdipaperino/laya-pong?logo=github&color=brightgreen)](https://github.com/aovestdipaperino/laya-pong/stargazers)
+
 A browser pong game whose left paddle is decided by [Laya](https://github.com/aovestdipaperino/laya-rust),
 one typed question per frame. The right paddle is three lines of arithmetic, playing the same
 ball, so you can watch the difference rather than take anyone's word for it.
